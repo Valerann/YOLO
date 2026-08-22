@@ -1,5 +1,6 @@
 from typing import List
 
+import cv2
 import numpy as np
 import torch
 from PIL import Image
@@ -67,12 +68,14 @@ class PadAndResize:
         scale = min(self.target_width / img_width, self.target_height / img_height)
         new_width, new_height = int(img_width * scale), int(img_height * scale)
 
-        resized_image = image.resize((new_width, new_height), Image.Resampling.LANCZOS)
+        img_np = np.array(image)
+        resized_np = cv2.resize(img_np, (new_width, new_height), interpolation=cv2.INTER_LINEAR)
 
         pad_left = (self.target_width - new_width) // 2
         pad_top = (self.target_height - new_height) // 2
-        padded_image = Image.new("RGB", (self.target_width, self.target_height), self.background_color)
-        padded_image.paste(resized_image, (pad_left, pad_top))
+        padded_np = np.full((self.target_height, self.target_width, 3), self.background_color, dtype=np.uint8)
+        padded_np[pad_top : pad_top + new_height, pad_left : pad_left + new_width] = resized_np
+        padded_image = Image.fromarray(padded_np)
 
         boxes[:, [1, 3]] = (boxes[:, [1, 3]] * new_width + pad_left) / self.target_width
         boxes[:, [2, 4]] = (boxes[:, [2, 4]] * new_height + pad_top) / self.target_height
