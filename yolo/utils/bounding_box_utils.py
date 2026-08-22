@@ -464,7 +464,11 @@ def bbox_nms(cls_dist: Tensor, bbox: Tensor, nms_cfg: NMSConfig, confidence: Opt
     valid_con = cls_dist[batch_idx, valid_grid, valid_cls]
     valid_box = bbox[batch_idx, valid_grid]
 
-    nms_idx = batched_nms(valid_box, valid_con, batch_idx + valid_cls * bbox.size(0), nms_cfg.min_iou)
+    # agnostic=True: group NMS by image only, so boxes of different classes at the same
+    # location suppress each other (matches yolov7's non_max_suppression(agnostic=True)).
+    # agnostic=False (default): group by (image, class), classes never suppress each other.
+    nms_group = batch_idx if getattr(nms_cfg, "agnostic", False) else batch_idx + valid_cls * bbox.size(0)
+    nms_idx = batched_nms(valid_box, valid_con, nms_group, nms_cfg.min_iou)
     predicts_nms = []
     for idx in range(cls_dist.size(0)):
         instance_idx = nms_idx[idx == batch_idx[nms_idx]]

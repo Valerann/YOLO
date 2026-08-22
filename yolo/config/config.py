@@ -108,6 +108,7 @@ class NMSConfig:
     min_confidence: float
     min_iou: float
     max_bbox: int
+    agnostic: bool = False
 
 
 @dataclass
