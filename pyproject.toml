@@ -1,9 +1,9 @@
 [tool.poetry]
-name = "yolo-mit-poc"
+name = "yolov7-mit"
 version = "0.1.0"
-description = "MultimediaTechLab/YOLO (MIT-licensed) proof-of-concept: yolov7x weight port + CPU/OpenVINO benchmarking"
+description = "MultimediaTechLab/YOLO (MIT-licensed), patched for yolov7x weight compatibility and CPU/OpenVINO inference"
 authors = ["Ran Katzir <ran.katzir@valerann.com>"]
-package-mode = false
+packages = [{ include = "yolo" }]
 
 [tool.poetry.dependencies]
 python = ">=3.12,<3.13"
