@@ -12,8 +12,11 @@ faster-coco-eval = "1.7.2"
 hydra-core = "1.3.5"
 lightning = "2.6.5"
 loguru = "0.7.3"
-numpy = ">=2.5.2,<3.0.0"
-opencv-python-headless = "5.0.0.93"
+numpy = ">=1.26.4,<3.0.0"
+# Capped below 5.0: opencv-python-headless 5.0.x hard-requires numpy>=2 on
+# python>=3.9 with no way around it, incompatible with numpy<2 consumers.
+# 4.11.0.86 is the last 4.x release; verified end-to-end with numpy 1.26.4.
+opencv-python-headless = "4.11.0.86"
 Pillow = ">=11.0.0,<13.0.0"
 pycocotools = "2.0.11"
 requests = "2.34.2"
