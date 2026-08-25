@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "yolov7-mit"
-version = "0.2.0"
+version = "0.3.0"
 description = "MultimediaTechLab/YOLO (MIT-licensed), patched for yolov7x weight compatibility and CPU/OpenVINO inference"
 authors = ["Ran Katzir <ran.katzir@valerann.com>"]
 packages = [{ include = "yolo" }]
@@ -21,8 +21,26 @@ Pillow = ">=11.0.0,<13.0.0"
 pycocotools = "2.0.11"
 requests = "2.34.2"
 rich = "15.0.0"
-torch = "2.13.0"
-torchvision = "0.28.0"
+# Pinned to explicit CPU-only wheel URLs, same reasoning as yolov7detect: plain
+# PyPI installs of torch/torchvision on Linux bundle the full CUDA runtime
+# (multi-GB) by default. 2.6.0/0.21.0 is the newest pairing with real CPU-only
+# Linux wheels published on download.pytorch.org/whl/cpu -- PyPI mainline is
+# already up to 2.13.0/0.28.0, but that channel has no CPU-only build for
+# anything past 2.6.0/0.21.0 yet. macOS wheels have no +cpu variant at all
+# (no CUDA there to avoid); torch dropped Intel macOS builds as of this
+# version, arm64 only.
+torch = [
+  { url = "https://download.pytorch.org/whl/cpu/torch-2.6.0%2Bcpu-cp312-cp312-linux_x86_64.whl", markers = "sys_platform == 'linux' and python_version == '3.12'" },
+  { url = "https://download.pytorch.org/whl/cpu/torch-2.6.0-cp312-none-macosx_11_0_arm64.whl", markers = "sys_platform == 'darwin' and platform_machine == 'arm64' and python_version == '3.12'" },
+  { url = "https://download.pytorch.org/whl/cpu/torch-2.6.0%2Bcpu-cp313-cp313-linux_x86_64.whl", markers = "sys_platform == 'linux' and python_version == '3.13'" },
+  { url = "https://download.pytorch.org/whl/cpu/torch-2.6.0-cp313-none-macosx_11_0_arm64.whl", markers = "sys_platform == 'darwin' and platform_machine == 'arm64' and python_version == '3.13'" },
+]
+torchvision = [
+  { url = "https://download.pytorch.org/whl/cpu/torchvision-0.21.0%2Bcpu-cp312-cp312-linux_x86_64.whl", markers = "sys_platform == 'linux' and python_version == '3.12'" },
+  { url = "https://download.pytorch.org/whl/cpu/torchvision-0.21.0-cp312-cp312-macosx_11_0_arm64.whl", markers = "sys_platform == 'darwin' and platform_machine == 'arm64' and python_version == '3.12'" },
+  { url = "https://download.pytorch.org/whl/cpu/torchvision-0.21.0%2Bcpu-cp313-cp313-linux_x86_64.whl", markers = "sys_platform == 'linux' and python_version == '3.13'" },
+  { url = "https://download.pytorch.org/whl/cpu/torchvision-0.21.0-cp313-cp313-macosx_11_0_arm64.whl", markers = "sys_platform == 'darwin' and platform_machine == 'arm64' and python_version == '3.13'" },
+]
 wandb = "0.28.2"
 
 [tool.poetry.group.openvino]

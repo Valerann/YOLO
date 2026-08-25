@@ -144,6 +144,12 @@ def detect_cpu(
     # Match the original's exact (unusual) semantics: rgb=True means the
     # array is ALREADY RGB-ordered (no channel swap); rgb=False means BGR.
     img_rgb_np = image if rgb else image[:, :, ::-1]
+    # The original never goes through PIL -- it feeds the raw array straight
+    # into cv2-based letterbox()/torch, so it's dtype-agnostic (uint8 or
+    # float32 alike). PIL's fromarray() rejects 3-channel float arrays
+    # outright, so normalize to uint8 first to accept the same inputs.
+    if img_rgb_np.dtype != np.uint8:
+        img_rgb_np = np.clip(img_rgb_np, 0, 255).astype(np.uint8)
     pil_image = Image.fromarray(np.ascontiguousarray(img_rgb_np))
 
     transform = AugmentationComposer([], [img_size, img_size])
