@@ -6,7 +6,7 @@ authors = ["Ran Katzir <ran.katzir@valerann.com>"]
 packages = [{ include = "yolo" }]
 
 [tool.poetry.dependencies]
-python = ">=3.12,<3.13"
+python = ">=3.12,<3.14"
 einops = "0.8.2"
 faster-coco-eval = "1.7.2"
 hydra-core = "1.3.5"
