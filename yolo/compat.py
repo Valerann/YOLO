@@ -27,6 +27,7 @@ import os
 from dataclasses import dataclass
 from typing import List, Optional
 
+import cv2
 import hydra
 import numpy as np
 import torch
@@ -36,6 +37,13 @@ from yolo import create_converter, create_model
 from yolo.config.config import NMSConfig
 from yolo.tools.data_augmentation import AugmentationComposer
 from yolo.utils.bounding_box_utils import bbox_nms
+
+# Matches yolov7detect's yolov7/utils/general.py: disable OpenCV's own thread
+# pool. PadAndResize calls cv2.resize() per image; on a small/single-vCPU
+# container, cv2's default multithreaded resize oversubscribes the CPU quota
+# for work that's trivial on one core, inflating CPU usage without actually
+# speeding anything up.
+cv2.setNumThreads(0)
 
 _CONFIG_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config")
 
