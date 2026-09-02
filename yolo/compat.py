@@ -33,8 +33,11 @@ import numpy as np
 import torch
 from PIL import Image
 
+from torch.nn.utils.fusion import fuse_conv_bn_eval
+
 from yolo import create_converter, create_model
 from yolo.config.config import NMSConfig
+from yolo.model.module import Conv, IDetection
 from yolo.tools.data_augmentation import AugmentationComposer
 from yolo.utils.bounding_box_utils import bbox_nms
 
@@ -44,6 +47,14 @@ from yolo.utils.bounding_box_utils import bbox_nms
 # for work that's trivial on one core, inflating CPU usage without actually
 # speeding anything up.
 cv2.setNumThreads(0)
+
+# PyTorch autodetects its intra-op thread pool size from the host machine's
+# core count, not a container's cgroup CPU quota -- on a 1-vCPU ECS Fargate
+# task this oversubscribes and causes thread contention rather than
+# speedup. Pinned to 1 to match the actual deployment target; call
+# torch.set_num_threads(N) in calling code before running inference to
+# override on a larger box.
+torch.set_num_threads(1)
 
 _CONFIG_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config")
 
@@ -78,6 +89,31 @@ class _LoadedModel:
     device: torch.device
 
 
+def _fuse_model(model: torch.nn.Module) -> None:
+    """Fold BatchNorm into the preceding conv, and IDetection's implicit
+    add/multiply into its detection conv -- matching yolov7detect's
+    attempt_load(...).fuse() (models/experimental.py + IDetect.fuse() in
+    models/yolo.py), which runs unconditionally on every load there. Without
+    this, every Conv block here pays a full BatchNorm normalize on every
+    forward pass, real per-inference compute the original never has: it's
+    mathematically folded into the conv weights once, at load time.
+    """
+    for module in model.modules():
+        if isinstance(module, Conv) and not isinstance(module.bn, torch.nn.Identity):
+            module.conv = fuse_conv_bn_eval(module.conv, module.bn)
+            module.bn = torch.nn.Identity()
+        elif isinstance(module, IDetection):
+            head_conv = module.head_conv
+            c_out, c_in = head_conv.weight.shape[:2]
+            implicit_a = module.implicit_a.implicit.reshape(c_in, 1)
+            head_conv.bias.data += (head_conv.weight.reshape(c_out, c_in) @ implicit_a).squeeze(1)
+            implicit_m = module.implicit_m.implicit.reshape(c_out)
+            head_conv.bias.data *= implicit_m
+            head_conv.weight.data *= implicit_m.reshape(c_out, 1, 1, 1)
+            module.implicit_a.implicit.data.zero_()
+            module.implicit_m.implicit.data.fill_(1.0)
+
+
 def load(
     model_path,
     autoshape=True,
@@ -109,6 +145,7 @@ def load(
     torch_device = torch.device("cpu")
     model = create_model(cfg.model, weight_path=model_path, class_num=cfg.dataset.class_num)
     model = model.to(torch_device).eval()
+    _fuse_model(model)
     converter = create_converter(cfg.model.name, model, cfg.model.anchor, cfg.image_size, torch_device)
 
     return _LoadedModel(model=model, converter=converter, device=torch_device)
